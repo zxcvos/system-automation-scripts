@@ -86,9 +86,9 @@ function _version_ge() {
 
 function get_rpm_latest_version() {
     local os_ver="$(_os_ver)"
+    _error_detect "rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org"
     case ${os_ver} in
         6)
-            _error_detect "rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org"
             rpm_kernel_url="https://dl.lamp.sh/files/"
             rpm_kernel_version="4.18.20"
             if _is_64bit; then
@@ -159,8 +159,8 @@ function check_kernel_version() {
             latest_kernel_version="${rpm_kernel_version}"
             ;;
         ubuntu|debian)
-            latest_kernel_version=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/ | awk -F'\"v' '/v[4-9]./{print $2}' | cut -d/ -f1 | grep -v - | sort -V | tail -n 1)
-            [[ -z ${latest_kernel_version} ]] && _error "Get latest kernel version failed."
+            get_deb_latest_version
+            latest_kernel_version="${deb_kernel_version}"
             ;;
     esac
     if _version_ge ${kernel_version} ${latest_kernel_version}; then
@@ -216,7 +216,6 @@ function install_kernel() {
                 if ! _exists "perl"; then
                     _error_detect "yum install -y perl"
                 fi
-                get_rpm_latest_version
                 if [ "$(_os_ver)" -eq 6 ]; then
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_name} ${rpm_kernel_url}${rpm_kernel_name}"
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_devel_name} ${rpm_kernel_url}${rpm_kernel_devel_name}"
@@ -229,11 +228,13 @@ function install_kernel() {
                     if [[ "$(_os_ver)" -eq 8 || "$(_os_ver)" -eq 9 ]]; then
                         _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_core_name} ${rpm_kernel_url}${rpm_kernel_core_name}"
                         _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_modules_name} ${rpm_kernel_url}${rpm_kernel_modules_name}"
+                        [ -s "${rpm_kernel_core_name}" ] || _error "Download ${rpm_kernel_core_name} failed, please check it."
+                        [ -s "${rpm_kernel_modules_name}" ] || _error "Download ${rpm_kernel_modules_name} failed, please check it."
                     fi
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_name} ${rpm_kernel_url}${rpm_kernel_name}"
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_devel_name} ${rpm_kernel_url}${rpm_kernel_devel_name}"
-                    [ -s "${rpm_kernel_core_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_core_name}" || _error "Download ${rpm_kernel_core_name} failed, please check it."
-                    [ -s "${rpm_kernel_modules_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_modules_name}" || _error "Download ${rpm_kernel_modules_name} failed, please check it."
+                    [ -s "${rpm_kernel_core_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_core_name}"
+                    [ -s "${rpm_kernel_modules_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_modules_name}"
                     [ -s "${rpm_kernel_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_name}" || _error "Download ${rpm_kernel_name} failed, please check it."
                     [ -s "${rpm_kernel_devel_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_devel_name}" || _error "Download ${rpm_kernel_devel_name} failed, please check it."
                     [ -s "${rpm_kernel_core_name}" ] && rm -f ${rpm_kernel_core_name}
@@ -244,7 +245,6 @@ function install_kernel() {
             fi
             ;;
         ubuntu|debian)
-            get_deb_latest_version
             if [ -n "${modules_deb_name}" ]; then
                 _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             fi
