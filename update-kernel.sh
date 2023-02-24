@@ -8,6 +8,9 @@
 # Original: https://teddysun.com/489.html
 # Github: https://github.com/zxcvos/system-automation-scripts/blob/main/update-kernel.sh
 
+trap 'rm -rf "${TMPFILE}"' EXIT
+TMPFILE=$(mktemp -d -p ${HOME} -t update_kernel.XXXXXXX) || exit 1
+
 cur_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
 RED='\033[1;31;31m'
 GREEN='\033[1;31;32m'
@@ -82,6 +85,23 @@ function _is_64bit() {
 
 function _version_ge() {
     test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"
+}
+
+function dpkg_repacked() {
+    DEB_PACKAGE="${1}"
+    cp -a ${DEB_PACKAGE} ${TMPFILE}/${DEB_PACKAGE}
+    _error_detect "cd ${TMPFILE}"
+    _error_detect "ar x ${DEB_PACKAGE}"
+    if [[ -s control.tar.zst && -s data.tar.zst ]]; then
+        _error_detect "rm -rf ${DEB_PACKAGE}"
+        _error_detect "zstd -d < control.tar.zst | xz > control.tar.xz"
+        _error_detect "zstd -d < data.tar.zst | xz > data.tar.xz"
+        _error_detect "ar -m -c -a sdsd ${DEB_PACKAGE} debian-binary control.tar.xz data.tar.xz"
+        _error_detect "rm -rf debian-binary control.tar.xz data.tar.xz control.tar.zst data.tar.zst"
+    fi
+    _error_detect "cd -"
+    mv -f "${TMPFILE}/${DEB_PACKAGE}" ${DEB_PACKAGE}
+    rm -rf "${TMPFILE}/*"
 }
 
 function get_rpm_latest_version() {
@@ -249,6 +269,11 @@ function install_kernel() {
                 _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             fi
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_name} ${deb_kernel_url}"
+            if [[ "debian" = "$(_os)" ]]; then
+                _error_detect "apt-get install -y zstd"
+                dpkg_repacked ${deb_kernel_modules_name}
+                dpkg_repacked ${deb_kernel_name}
+            fi
             _error_detect "dpkg -i ${deb_kernel_modules_name} ${deb_kernel_name}"
             rm -f ${deb_kernel_modules_name} ${deb_kernel_name}
             _error_detect "/usr/sbin/update-grub"
