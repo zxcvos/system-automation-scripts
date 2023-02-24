@@ -86,7 +86,7 @@ function _version_ge() {
 
 function get_rpm_latest_version() {
     local os_ver="$(_os_ver)"
-    _error_detect "rpm --import https://www.elrepo.org/RPM-GPG-KEY-elrepo.org"
+    _error_detect "rpm --import https://raw.githubusercontent.com/elrepo/packages/master/elrepo-release/el${os_ver}/RPM-GPG-KEY-elrepo.org"
     case ${os_ver} in
         6)
             rpm_kernel_url="https://dl.lamp.sh/files/"
