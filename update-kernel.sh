@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Description:      Update Linux kernel to the latest version
-# System Required:  CentOS 6+, Debian8+, Ubuntu16+
+# System Required:  CentOS 6+, Debian10+, Ubuntu16+
 #
 # Copyright (C) 2023 zxcvos
 # Thanks: Teddysun <i@teddysun.com>
@@ -85,6 +85,67 @@ function _is_64bit() {
 
 function _version_ge() {
     test "$(echo "$@" | tr " " "\n" | sort -rV | head -n 1)" == "$1"
+}
+
+function install_dependence() {
+    case "$(_os)" in
+        centos)
+            case "$(_os_ver)" in
+                6|7)
+                    if ! _exists "curl"; then
+                        yum update -y
+                        _error_detect "yum install -y curl"
+                    fi
+                    if ! _exists "wget"; then
+                        yum update -y
+                        _error_detect "yum install -y wget"
+                    fi
+                    if ! _exists "perl"; then
+                        yum update -y
+                        _error_detect "yum install -y perl"
+                    fi
+                    ;;
+                8|9)
+                    if ! _exists "curl"; then
+                        dnf update -y
+                        _error_detect "dnf install -y curl"
+                    fi
+                    if ! _exists "wget"; then
+                        dnf update -y
+                        _error_detect "dnf install -y wget"
+                    fi
+                    ;;
+                *)
+                    ;; # do nothing
+            esac
+            ;;
+        ubuntu|debian)
+            if ! _exists "wget"; then
+                apt-get update -y
+                _error_detect "apt-get install -y wget"
+            fi
+            if ! _exists "curl"; then
+                apt-get update -y
+                _error_detect "apt-get install -y curl"
+            fi
+            if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
+                apt-get update -y
+                _error_detect "apt-get install -y linux-base"
+                if ! _exists "ar"; then
+                    apt-get update -y
+                    _error_detect "apt-get install -y binutils"
+                fi
+                if ! _exists "zstd"; then
+                    apt-get update -y
+                    _error_detect "apt-get install -y zstd"
+                fi
+                if ! _exists "xz"; then
+                    apt-get update -y
+                    _error_detect "apt-get install -y xz-utils"
+                fi
+            fi
+            ;;
+    esac
 }
 
 function dpkg_repacked() {
@@ -209,7 +270,7 @@ function check_os() {
             [ -n "$(_os_ver)" -a "$(_os_ver)" -lt 16 ] && _error "Not supported OS, please change to Ubuntu 16+ and try again."
             ;;
         debian)
-            [ -n "$(_os_ver)" -a "$(_os_ver)" -lt 8 ] &&  _error "Not supported OS, please change to Debian 8+ and try again."
+            [ -n "$(_os_ver)" -a "$(_os_ver)" -lt 10 ] &&  _error "Not supported OS, please change to Debian 10+ and try again."
             ;;
         centos)
             [ -n "$(_os_ver)" -a "$(_os_ver)" -lt 6 ] &&  _error "Not supported OS, please change to CentOS 6+ and try again."
@@ -233,9 +294,6 @@ function install_kernel() {
     case "$(_os)" in
         centos)
             if [ -n "$(_os_ver)" ]; then
-                if ! _exists "perl"; then
-                    _error_detect "yum install -y perl"
-                fi
                 if [ "$(_os_ver)" -eq 6 ]; then
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_name} ${rpm_kernel_url}${rpm_kernel_name}"
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_devel_name} ${rpm_kernel_url}${rpm_kernel_devel_name}"
@@ -269,8 +327,7 @@ function install_kernel() {
                 _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             fi
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_name} ${deb_kernel_url}"
-            if [[ "debian" = "$(_os)" ]]; then
-                _error_detect "apt-get install -y zstd"
+            if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
                 dpkg_repacked ${deb_kernel_modules_name}
                 dpkg_repacked ${deb_kernel_name}
             fi
@@ -296,12 +353,13 @@ function reboot_os() {
 }
 
 function update_kernel() {
+    check_os
+    install_dependence
     if check_kernel_version; then
         echo
         _info "The kernel version is the latest version..."
         exit 0
     fi
-    check_os
     install_kernel
     sysctl_config
     reboot_os
