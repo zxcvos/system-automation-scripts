@@ -92,26 +92,31 @@ function install_dependence() {
         centos)
             case "$(_os_ver)" in
                 6|7)
+                    if [[ 6 == "$(_os_ver)" ]]; then
+                        local main_ver="$( echo $(_os_full) | grep -oE  "[0-9.]+")"
+                        cp /etc/yum.repos.d/CentOS-Base.repo /etc/yum.repos.d/CentOS-Base.repo.bak
+                        sed -i 's/^mirrorlist/#&/g; s/^#baseurl/baseurl/g' /etc/yum.repos.d/CentOS-Base.repo
+                        sed -i "s|mirror.centos.org/centos/\$releasever|vault.centos.org/$main_ver|g" /etc/yum.repos.d/CentOS-Base.repo
+                        yum clean all
+                        yum repolist
+                    fi
+                    yum update -y
                     if ! _exists "curl"; then
-                        yum update -y
                         _error_detect "yum install -y curl"
                     fi
                     if ! _exists "wget"; then
-                        yum update -y
                         _error_detect "yum install -y wget"
                     fi
                     if ! _exists "perl"; then
-                        yum update -y
                         _error_detect "yum install -y perl"
                     fi
                     ;;
                 8|9)
+                    dnf update -y
                     if ! _exists "curl"; then
-                        dnf update -y
                         _error_detect "dnf install -y curl"
                     fi
                     if ! _exists "wget"; then
-                        dnf update -y
                         _error_detect "dnf install -y wget"
                     fi
                     ;;
@@ -120,27 +125,22 @@ function install_dependence() {
             esac
             ;;
         ubuntu|debian)
+            apt-get update -y
             if ! _exists "wget"; then
-                apt-get update -y
                 _error_detect "apt-get install -y wget"
             fi
             if ! _exists "curl"; then
-                apt-get update -y
                 _error_detect "apt-get install -y curl"
             fi
             if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
-                apt-get update -y
                 _error_detect "apt-get install -y linux-base"
                 if ! _exists "ar"; then
-                    apt-get update -y
                     _error_detect "apt-get install -y binutils"
                 fi
                 if ! _exists "zstd"; then
-                    apt-get update -y
                     _error_detect "apt-get install -y zstd"
                 fi
                 if ! _exists "xz"; then
-                    apt-get update -y
                     _error_detect "apt-get install -y xz-utils"
                 fi
             fi
