@@ -99,7 +99,7 @@ function remove_extra_kernel() {
                 exit 0
             fi
             dpkg -l | grep -E "linux-(image|modules|headers)" | awk '{print $2}' | grep -v "$(uname -r)" | xargs apt-get -y purge
-            apt-get -y autoreme
+            apt-get -y autoremove
             ;;
         *)
             _error "Not supported OS"
