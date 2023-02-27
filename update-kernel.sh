@@ -201,9 +201,9 @@ function get_rpm_latest_version() {
 }
 
 function get_deb_latest_version() {
-    deb_kernel_version=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/ | awk -F'\"v' '/v[4-9]./{print $2}' | cut -d/ -f1 | grep -v - | sort -V | tail -n 1)
-    [[ -z ${deb_kernel_version} ]] && _error "Get latest kernel version failed."
     if _is_64bit; then
+        deb_kernel_version=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/ | awk -F'\"v' '/v[4-9]./{print $2}' | cut -d/ -f1 | grep -v - | sort -V | tail -n 1)
+        [[ -z ${deb_kernel_version} ]] && _error "Get latest kernel version failed."
         deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-image" | grep "generic" | awk -F'\">' '/amd64.deb/{print $2}' | cut -d'<' -f1 | head -1)
         deb_kernel_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${deb_name}"
         deb_kernel_name="linux-image-${deb_kernel_version}-amd64.deb"
@@ -211,6 +211,7 @@ function get_deb_latest_version() {
         deb_kernel_modules_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${modules_deb_name}"
         deb_kernel_modules_name="linux-modules-${deb_kernel_version}-amd64.deb"
     else
+        deb_kernel_version="5.3"
         deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-image" | grep "generic" | awk -F'\">' '/i386.deb/{print $2}' | cut -d'<' -f1 | head -1)
         deb_kernel_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${deb_name}"
         deb_kernel_name="linux-image-${deb_kernel_version}-i386.deb"
@@ -377,7 +378,7 @@ echo " OS      : $opsy"
 echo " Arch    : $arch ($lbit Bit)"
 echo " Kernel  : $kern"
 echo "----------------------------------------"
-echo " Update Linux kernel to the latest version script"
+echo " Script to update Linux kernel to the latest version"
 echo
 echo " URL: https://github.com/zxcvos/system-automation-scripts/blob/main/update-kernel.sh"
 echo "----------------------------------------"
