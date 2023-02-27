@@ -187,6 +187,7 @@ function get_rpm_latest_version() {
                 rpm_kernel_version=$(echo ${rpm_list} | grep -Eoi "kernel-ml-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | cut -d- -f3 | grep -v - | sort -V | tail -n 1)
                 rpm_kernel_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                 rpm_kernel_devel_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-devel-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
+                rpm_kernel_headers_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-headers-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                 if [[ ${os_ver} -eq 8 || ${os_ver} -eq 9 ]]; then
                     rpm_kernel_core_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-core-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                     rpm_kernel_modules_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-modules-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
@@ -210,6 +211,9 @@ function get_deb_latest_version() {
         modules_deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-modules" | grep "generic" | awk -F'\">' '/amd64.deb/{print $2}' | cut -d'<' -f1 | head -1)
         deb_kernel_modules_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${modules_deb_name}"
         deb_kernel_modules_name="linux-modules-${deb_kernel_version}-amd64.deb"
+        headers_deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-headers" | grep "generic" | awk -F'\">' '/amd64.deb/{print $2}' | cut -d'<' -f1 | head -1)
+        deb_kernel_headers_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${headers_deb_name}"
+        deb_kernel_headers_name="linux-headers-${deb_kernel_version}-amd64.deb"
     else
         deb_kernel_version="5.3"
         deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-image" | grep "generic" | awk -F'\">' '/i386.deb/{print $2}' | cut -d'<' -f1 | head -1)
@@ -218,6 +222,9 @@ function get_deb_latest_version() {
         modules_deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-modules" | grep "generic" | awk -F'\">' '/i386.deb/{print $2}' | cut -d'<' -f1 | head -1)
         deb_kernel_modules_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${modules_deb_name}"
         deb_kernel_modules_name="linux-modules-${deb_kernel_version}-i386.deb"
+        headers_deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-headers" | grep "generic" | awk -F'\">' '/i386.deb/{print $2}' | cut -d'<' -f1 | head -1)
+        deb_kernel_headers_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${headers_deb_name}"
+        deb_kernel_headers_name="linux-headers-${deb_kernel_version}-i386.deb"
     fi
     [ -z "${deb_name}" ] && _error "Getting Linux kernel binary package name failed, maybe kernel build failed. Please choose other one and try again."
 }
@@ -312,28 +319,30 @@ function install_kernel() {
                     fi
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_name} ${rpm_kernel_url}${rpm_kernel_name}"
                     _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_devel_name} ${rpm_kernel_url}${rpm_kernel_devel_name}"
+                    _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_headers_name} ${rpm_kernel_url}${rpm_kernel_headers_name}"
                     [ -s "${rpm_kernel_core_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_core_name}"
                     [ -s "${rpm_kernel_modules_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_modules_name}"
                     [ -s "${rpm_kernel_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_name}" || _error "Download ${rpm_kernel_name} failed, please check it."
                     [ -s "${rpm_kernel_devel_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_devel_name}" || _error "Download ${rpm_kernel_devel_name} failed, please check it."
+                    [ -s "${rpm_kernel_headers_name}" ] && _error_detect "rpm -ivh ${rpm_kernel_headers_name}" || _error "Download ${rpm_kernel_headers_name} failed, please check it."
                     [ -s "${rpm_kernel_core_name}" ] && rm -f ${rpm_kernel_core_name}
                     [ -s "${rpm_kernel_modules_name}" ] && rm -f ${rpm_kernel_modules_name}
-                    rm -f ${rpm_kernel_name} ${rpm_kernel_devel_name}
+                    rm -f ${rpm_kernel_name} ${rpm_kernel_devel_name} ${rpm_kernel_headers_name}
                     grubby --set-default $(grubby --info=ALL | grep -E ^kernel.*${rpm_kernel_version} | cut -d= -f2)
                 fi
             fi
             ;;
         ubuntu|debian)
-            if [ -n "${modules_deb_name}" ]; then
-                _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
-            fi
+            _error_detect "wget -c -t3 -T60 -O ${deb_kernel_headers_name} ${deb_kernel_headers_url}"
+            _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_name} ${deb_kernel_url}"
             if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
+                dpkg_repacked ${deb_kernel_headers_name}
                 dpkg_repacked ${deb_kernel_modules_name}
                 dpkg_repacked ${deb_kernel_name}
             fi
-            _error_detect "dpkg -i ${deb_kernel_modules_name} ${deb_kernel_name}"
-            rm -f ${deb_kernel_modules_name} ${deb_kernel_name}
+            _error_detect "dpkg -i ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}"
+            rm -f ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}
             _error_detect "/usr/sbin/update-grub"
             ;;
         *)
