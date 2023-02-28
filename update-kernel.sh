@@ -62,7 +62,7 @@ function _os_full() {
 }
 
 function _os_ver() {
-    local main_ver="$( echo $(_os_full) | grep -oE  "[0-9.]+")"
+    local main_ver="$( echo $(_os_full) | grep -oE "[0-9.]+")"
     printf -- "%s" "${main_ver%%.*}"
 }
 
@@ -188,7 +188,7 @@ function get_rpm_latest_version() {
                 rpm_kernel_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                 rpm_kernel_devel_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-devel-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                 rpm_kernel_headers_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-headers-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
-                if [[ ${os_ver} -eq 8 || ${os_ver} -eq 9 ]]; then
+                if [[ ${os_ver} -ge 8 ]]; then
                     rpm_kernel_core_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-core-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                     rpm_kernel_modules_name=$(echo ${rpm_list} | grep -Eoi "kernel-ml-modules-[5-9]+\.[0-9]+\.[0-9]+-1\.el${os_ver}\.(elrepo\.)?x86_64.rpm" | sort -V | uniq | tail -n 1)
                 fi
@@ -310,8 +310,8 @@ function install_kernel() {
                     rm -f ${rpm_kernel_name} ${rpm_kernel_devel_name}
                     [ ! -f "/boot/grub/grub.conf" ] && _error "/boot/grub/grub.conf not found, please check it."
                     sed -i 's/^default=.*/default=0/g' /boot/grub/grub.conf
-                elif [[ "$(_os_ver)" -eq 7 || "$(_os_ver)" -eq 8 || "$(_os_ver)" -eq 9  ]]; then
-                    if [[ "$(_os_ver)" -eq 8 || "$(_os_ver)" -eq 9 ]]; then
+                elif [[ "$(_os_ver)" -ge 7 ]]; then
+                    if [[ "$(_os_ver)" -ge 8 ]]; then
                         _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_core_name} ${rpm_kernel_url}${rpm_kernel_core_name}"
                         _error_detect "wget -c -t3 -T60 -O ${rpm_kernel_modules_name} ${rpm_kernel_url}${rpm_kernel_modules_name}"
                         [ -s "${rpm_kernel_core_name}" ] || _error "Download ${rpm_kernel_core_name} failed, please check it."
@@ -336,7 +336,7 @@ function install_kernel() {
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_headers_name} ${deb_kernel_headers_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_name} ${deb_kernel_url}"
-            if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
+            if ! dpkg-deb --help | grep -qw "zstd"; then
                 dpkg_repacked ${deb_kernel_headers_name}
                 dpkg_repacked ${deb_kernel_modules_name}
                 dpkg_repacked ${deb_kernel_name}
