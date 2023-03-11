@@ -230,6 +230,9 @@ function get_deb_latest_version() {
         deb_kernel_headers_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${headers_deb_name}"
         deb_kernel_headers_name="linux-headers-${deb_kernel_version}-i386.deb"
     fi
+    headers_all_deb_name=$(wget -qO- https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/ | grep "linux-headers" | grep "all" | awk -F'\">' '/all.deb/{print $2}' | cut -d'<' -f1 | head -1)
+    deb_kernel_headers_all_url="https://kernel.ubuntu.com/~kernel-ppa/mainline/v${deb_kernel_version}/${headers_all_deb_name}"
+    deb_kernel_headers_all_name="linux-headers-${deb_kernel_version}-all.deb"
     [ -z "${deb_name}" ] && _error "Getting Linux kernel binary package name failed, maybe kernel build failed. Please choose other one and try again."
 }
 
@@ -337,16 +340,18 @@ function install_kernel() {
             fi
             ;;
         ubuntu|debian)
+            _error_detect "wget -c -t3 -T60 -O ${deb_kernel_headers_all_name} ${deb_kernel_headers_all_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_headers_name} ${deb_kernel_headers_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_modules_name} ${deb_kernel_modules_url}"
             _error_detect "wget -c -t3 -T60 -O ${deb_kernel_name} ${deb_kernel_url}"
             if ! dpkg-deb --help | grep -qw "zstd"; then
+                dpkg_repacked ${deb_kernel_headers_all_name}
                 dpkg_repacked ${deb_kernel_headers_name}
                 dpkg_repacked ${deb_kernel_modules_name}
                 dpkg_repacked ${deb_kernel_name}
             fi
-            _error_detect "dpkg -i ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}"
-            rm -f ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}
+            _error_detect "dpkg -i ${deb_kernel_headers_all_name} ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}"
+            rm -f ${deb_kernel_headers_all_name} ${deb_kernel_headers_name} ${deb_kernel_modules_name} ${deb_kernel_name}
             _error_detect "/usr/sbin/update-grub"
             ;;
         *)
