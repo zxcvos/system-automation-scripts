@@ -71,6 +71,7 @@ function _error_detect() {
     _info "${cmd}"
     eval ${cmd}
     if [ $? -ne 0 ]; then
+        [[ "debian" == "$(_os)" || "ubuntu" == "$(_os)" ]] && apt-get install -y -f
         _error "Execution command (${cmd}) failed, please check it and try again."
     fi
 }
@@ -101,6 +102,7 @@ function install_dependence() {
                         yum repolist
                     fi
                     yum update -y
+                    _error_detect "yum install -y ca-certificates yum-utils procps-ng"
                     if ! _exists "curl"; then
                         _error_detect "yum install -y curl"
                     fi
@@ -113,6 +115,7 @@ function install_dependence() {
                     ;;
                 8|9)
                     dnf update -y
+                    _error_detect "dnf install -y ca-certificates procps-ng"
                     if ! _exists "curl"; then
                         _error_detect "dnf install -y curl"
                     fi
@@ -126,22 +129,23 @@ function install_dependence() {
             ;;
         ubuntu|debian)
             apt-get update -y
+            apt-get install -y -f
+            _error_detect "apt-get install --no-install-recommends -y linux-base initramfs-tools ca-certificates procps"
             if ! _exists "wget"; then
-                _error_detect "apt-get install -y wget"
+                _error_detect "apt-get install --no-install-recommends -y wget"
             fi
             if ! _exists "curl"; then
-                _error_detect "apt-get install -y curl"
+                _error_detect "apt-get install --no-install-recommends -y curl"
             fi
             if [[ "debian" == "$(_os)" || ("ubuntu" == "$(_os)" && 16 == "$(_os_ver)") ]]; then
-                _error_detect "apt-get install -y linux-base"
                 if ! _exists "ar"; then
-                    _error_detect "apt-get install -y binutils"
+                    _error_detect "apt-get install --no-install-recommends -y binutils"
                 fi
                 if ! _exists "zstd"; then
-                    _error_detect "apt-get install -y zstd"
+                    _error_detect "apt-get install --no-install-recommends -y zstd"
                 fi
                 if ! _exists "xz"; then
-                    _error_detect "apt-get install -y xz-utils"
+                    _error_detect "apt-get install --no-install-recommends -y xz-utils"
                 fi
             fi
             ;;
