@@ -8,7 +8,7 @@
 # Original: https://teddysun.com/489.html
 # Github: https://github.com/zxcvos/system-automation-scripts/blob/main/update-kernel.sh
 
-trap 'rm -rf "${TMPFILE}"' EXIT
+trap 'rm -rf "$TMPFILE"' EXIT
 TMPFILE=$(mktemp -d -p ${HOME} -t update_kernel.XXXXXXX) || exit 1
 
 cur_dir="$(cd -P -- "$(dirname -- "$0")" && pwd -P)"
@@ -364,6 +364,7 @@ function reboot_os() {
     _info "The system needs to reboot."
     read -r -p  "Do you want to restart system? [y/N]" is_reboot
     if [[ ${is_reboot}  =~ ^[Yy]$ ]]; then
+        rm -rf "$TMPFILE"
         reboot
     else
         _info "Reboot has been canceled..."
